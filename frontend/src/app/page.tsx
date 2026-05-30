@@ -61,13 +61,8 @@ export default function HomePage() {
   return (
     <SiteLayout>
       <div className="w-full relative overflow-x-hidden">
-        {/* 1. Hero banner section with dynamic 3D blossoms backdrop */}
         <HeroSection />
-        
-        {/* 2. Shop categories navigation grids */}
         <CategorySection products={products} />
-        
-        {/* 3. New Arrivals Swiper Carousel with Shimmer pulse skeleton loading state */}
         <NewInSection
           products={newInProducts}
           wishlist={wishlist}
@@ -75,8 +70,6 @@ export default function HomePage() {
           onAddToCart={handleAddToCart}
           isLoading={isLoading}
         />
-        
-        {/* 4. Bestsellers responsive catalog grid */}
         <BestsellerSection
           products={bestsellerProducts}
           wishlist={wishlist}
@@ -84,8 +77,6 @@ export default function HomePage() {
           onAddToCart={handleAddToCart}
           isLoading={isLoading}
         />
-
-        {/* 5. Trending Products responsive catalog grid */}
         <TrendingSection
           products={trendingProducts}
           wishlist={wishlist}
@@ -93,13 +84,10 @@ export default function HomePage() {
           onAddToCart={handleAddToCart}
           isLoading={isLoading}
         />
-        
-        {/* 6. Brand stories and Polaroid collage parallax section */}
         <StorySection />
-        
-        {/* 7. Brand reassurance/exchanges row */}
         <TrustBar />
       </div>
     </SiteLayout>
   );
+
 }
