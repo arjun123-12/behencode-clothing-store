@@ -5,9 +5,6 @@ import { useCart } from '@/context/CartContext';
 import { Product } from '@/types/product';
 import useProducts from '@/hooks/useProducts';
 
-// Import storefront layout
-import SiteLayout from './(storefront)/layout';
-
 // Import Home modular components
 import HeroSection from '@/components/home/HeroSection';
 import CategorySection from '@/components/home/CategorySection';
@@ -38,18 +35,18 @@ export default function HomePage() {
     );
   };
 
-  // 1. New Collection: Display latest products added by admin, limited dynamically
+  // 1. New Collection
   const newInProducts = [...products]
     .filter((p) => p.isNewIn)
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
     .slice(0, newArrivalsLimit);
 
-  // 2. Best Sellers: Display products marked as bestseller, sorted by salesCount descending
+  // 2. Best Sellers
   const bestsellerProducts = [...products]
     .filter((p) => p.isBestseller)
     .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
 
-  // 3. Trending: Display products marked as trending, sorted by popularity/views descending
+  // 3. Trending
   const trendingProducts = [...products]
     .filter((p) => p.isTrending)
     .sort((a, b) => (b.views || 0) - (a.views || 0));
@@ -59,35 +56,32 @@ export default function HomePage() {
   };
 
   return (
-    <SiteLayout>
-      <div className="w-full relative overflow-x-hidden">
-        <HeroSection />
-        <CategorySection products={products} />
-        <NewInSection
-          products={newInProducts}
-          wishlist={wishlist}
-          onToggleWishlist={toggleWishlist}
-          onAddToCart={handleAddToCart}
-          isLoading={isLoading}
-        />
-        <BestsellerSection
-          products={bestsellerProducts}
-          wishlist={wishlist}
-          onToggleWishlist={toggleWishlist}
-          onAddToCart={handleAddToCart}
-          isLoading={isLoading}
-        />
-        <TrendingSection
-          products={trendingProducts}
-          wishlist={wishlist}
-          onToggleWishlist={toggleWishlist}
-          onAddToCart={handleAddToCart}
-          isLoading={isLoading}
-        />
-        <StorySection />
-        <TrustBar />
-      </div>
-    </SiteLayout>
+    <div className="w-full relative overflow-x-hidden">
+      <HeroSection />
+      <CategorySection products={products} />
+      <NewInSection
+        products={newInProducts}
+        wishlist={wishlist}
+        onToggleWishlist={toggleWishlist}
+        onAddToCart={handleAddToCart}
+        isLoading={isLoading}
+      />
+      <BestsellerSection
+        products={bestsellerProducts}
+        wishlist={wishlist}
+        onToggleWishlist={toggleWishlist}
+        onAddToCart={handleAddToCart}
+        isLoading={isLoading}
+      />
+      <TrendingSection
+        products={trendingProducts}
+        wishlist={wishlist}
+        onToggleWishlist={toggleWishlist}
+        onAddToCart={handleAddToCart}
+        isLoading={isLoading}
+      />
+      <StorySection />
+      <TrustBar />
+    </div>
   );
-
 }
