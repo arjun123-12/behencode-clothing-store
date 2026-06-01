@@ -1,5 +1,10 @@
 {
   "experimentalServices": {
+    "backend": {
+      "root": "backend",
+      "routePrefix": "/api",
+      "framework": "nodejs"
+    },
     "frontend": {
       "root": "frontend",
       "routePrefix": "/",
