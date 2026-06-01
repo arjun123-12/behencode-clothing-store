@@ -2,22 +2,23 @@ const app = require('../backend/src/app');
 const connectDB = require('../backend/src/config/db');
 const seedData = require('../backend/src/config/seed');
 
-let dbConnected = false;
+let isInitialized = false;
 
 const initializeApp = async () => {
-  if (!dbConnected) {
+  if (!isInitialized) {
     try {
       await connectDB();
       await seedData();
-      dbConnected = true;
+      isInitialized = true;
       console.log('[OK]: Database connected and seeded');
     } catch (error) {
-      console.error('[ERROR]: Database initialization failed:', error.message);
+      console.error('[ERROR]: Initialization failed:', error.message);
     }
   }
 };
 
-export default async (req, res) => {
+// Vercel serverless handler
+module.exports = async (req, res) => {
   await initializeApp();
   app(req, res);
 };
