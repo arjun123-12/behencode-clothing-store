@@ -11,6 +11,9 @@ router.route('/')
   .post(validate(createOrderValidator), orderController.createOrder)
   .get(protect, admin, orderController.getOrders);
 
+router.route('/verify')
+  .post(orderController.verifyPayment);
+
 router.route('/:id/status')
   .put(protect, admin, orderController.updateOrderStatus);
 

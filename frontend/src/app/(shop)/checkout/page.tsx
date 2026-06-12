@@ -75,6 +75,20 @@ export default function CheckoutPage() {
 
   const finalTotal = cartTotal - promoDiscount;
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const onSubmit = async (data: CheckoutFormData) => {
     setIsSubmitting(true);
     
@@ -105,17 +119,79 @@ export default function CheckoutPage() {
       const response = await API.post('/orders', orderPayload);
       
       if (response.data?.success && response.data?.order) {
-        setOrderId(response.data.order.orderId);
-        setIsSuccess(true);
-        clearCart();
+        const { order } = response.data;
+        
+        if (order.razorpayOrder) {
+          const scriptLoaded = await loadRazorpayScript();
+          if (!scriptLoaded) {
+            alert('Razorpay SDK failed to load. Are you offline?');
+            setIsSubmitting(false);
+            return;
+          }
+
+          const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+          const options = {
+            key: rzpKey,
+            amount: order.razorpayOrder.amount,
+            currency: order.razorpayOrder.currency,
+            name: 'Behencode',
+            description: `Payment for order ${order.orderId}`,
+            order_id: order.razorpayOrder.id,
+            handler: async function (paymentResponse: any) {
+              setIsSubmitting(true);
+              try {
+                const verifyResponse = await API.post('/orders/verify', {
+                  orderId: order.orderId,
+                  razorpay_order_id: paymentResponse.razorpay_order_id,
+                  razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                  razorpay_signature: paymentResponse.razorpay_signature,
+                });
+
+                if (verifyResponse.data?.success) {
+                  setOrderId(order.orderId);
+                  setIsSuccess(true);
+                  clearCart();
+                } else {
+                  alert(verifyResponse.data?.message || 'Payment verification failed.');
+                }
+              } catch (verifyErr: any) {
+                console.error('Payment verification error:', verifyErr);
+                const verifyErrMsg = verifyErr.response?.data?.message || verifyErr.message || 'Payment verification failed.';
+                alert(`Verification failed: ${verifyErrMsg}`);
+              } finally {
+                setIsSubmitting(false);
+              }
+            },
+            prefill: {
+              name: data.fullName,
+              email: data.email,
+              contact: data.phone,
+            },
+            theme: {
+              color: '#f43f5e',
+            },
+            modal: {
+              ondismiss: function () {
+                setIsSubmitting(false);
+              }
+            }
+          };
+
+          const rzp = new (window as any).Razorpay(options);
+          rzp.open();
+        } else {
+          setOrderId(order.orderId);
+          setIsSuccess(true);
+          clearCart();
+        }
       } else {
         alert(response.data?.message || 'Failed to place order.');
+        setIsSubmitting(false);
       }
     } catch (err: any) {
       console.error('Order checkout submission error:', err);
       const errMsg = err.response?.data?.message || err.message || 'Server error placing order.';
       alert(`Checkout failed: ${errMsg}`);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -299,49 +375,27 @@ export default function CheckoutPage() {
                     className="accent-rose"
                   />
                   <div>
-                    <p className="text-xs font-bold text-foreground">Test Card</p>
-                    <p className="text-[10px] text-light-brown mt-0.5">Simulate instant payments</p>
+                    <p className="text-xs font-bold text-foreground">Pay Online</p>
+                    <p className="text-[10px] text-light-brown mt-0.5">Cards, UPI, Netbanking</p>
                   </div>
                 </label>
 
               </div>
             </div>
 
-            {/* Credit Card inputs */}
+            {/* Razorpay Gateway Info */}
             {selectedPayment === 'card' && (
-              <div className="p-5 border border-border-custom bg-cream/20 rounded-2xl space-y-4 animate-fadeIn">
-                <div>
-                  <label className="block text-[9px] font-bold text-foreground mb-1 uppercase tracking-wider">Card Number</label>
-                  <input
-                    type="text"
-                    {...register('cardNumber', { required: selectedPayment === 'card' })}
-                    placeholder="4111 2222 3333 4444"
-                    className="w-full px-3 py-2.5 border border-border-custom rounded-xl text-xs bg-background focus:outline-none focus:border-rose text-foreground"
-                  />
+              <div className="p-5 border border-border-custom bg-cream/20 rounded-2xl space-y-3 animate-fadeIn">
+                <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                  <CreditCard size={14} className="text-rose" />
+                  <span>Secure Online Payment</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[9px] font-bold text-foreground mb-1 uppercase tracking-wider">Expiry Date</label>
-                    <input
-                      type="text"
-                      {...register('cardExpiry', { required: selectedPayment === 'card' })}
-                      placeholder="MM/YY"
-                      className="w-full px-3 py-2.5 border border-border-custom rounded-xl text-xs bg-background focus:outline-none focus:border-rose text-foreground"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[9px] font-bold text-foreground mb-1 uppercase tracking-wider">CVV Code</label>
-                    <input
-                      type="text"
-                      {...register('cardCvv', { required: selectedPayment === 'card' })}
-                      placeholder="123"
-                      className="w-full px-3 py-2.5 border border-border-custom rounded-xl text-xs bg-background focus:outline-none focus:border-rose text-foreground"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 text-[10px] text-light-brown">
-                  <CreditCard size={12} className="text-rose" />
-                  <span>Payments are simulated and secure. No real money will be charged.</span>
+                <p className="text-[10px] text-light-brown leading-relaxed">
+                  Pay securely using Razorpay gateway. We accept all major Credit/Debit Cards, UPI (GPay, PhonePe, Paytm), Netbanking, and online wallets.
+                </p>
+                <div className="flex items-center gap-1.5 text-[9px] text-light-brown/80 font-medium">
+                  <ShieldCheck size={11} className="text-rose" />
+                  <span>Your transaction is encrypted and completely secure.</span>
                 </div>
               </div>
             )}

@@ -55,14 +55,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div>
         {/* Image wrapper */}
         <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-cream mb-4 border border-border-custom/10">
-          <Image
-            src={getImageUrl(product.images?.[0])}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-            priority={badge === 'Best'}
-          />
+          <Link href={`/products/${product._id}`} className="block w-full h-full relative">
+            {getImageUrl(product.images?.[0]).includes('/uploads/') ? (
+              <img
+                src={getImageUrl(product.images?.[0])}
+                alt={product.name}
+                className="object-cover transition-transform duration-700 group-hover:scale-105 w-full h-full"
+              />
+            ) : (
+              <Image
+                src={getImageUrl(product.images?.[0])}
+                alt={product.name}
+                fill
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                priority={badge === 'Best'}
+              />
+            )}
+          </Link>
           
           {/* Badge */}
           {badge && (

@@ -204,7 +204,7 @@ class ProductService {
       }
     });
 
-    await Product.findByIdAndDelete(id);
+    await productRepository.delete(id);
     return true;
   }
 }

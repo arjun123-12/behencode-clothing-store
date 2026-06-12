@@ -33,3 +33,19 @@ exports.updateOrderStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.verifyPayment = async (req, res, next) => {
+  try {
+    const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const order = await orderService.verifyPayment({
+      orderId,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+    });
+    res.status(200).json(new ApiResponse(200, { order }, 'Payment verified successfully'));
+  } catch (error) {
+    next(error);
+  }
+};
+

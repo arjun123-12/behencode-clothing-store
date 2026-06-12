@@ -1,6 +1,16 @@
 const orderRepository = require('../repositories/orderRepository');
 const productRepository = require('../repositories/productRepository');
 const ApiError = require('../utils/ApiError');
+const crypto = require('crypto');
+const Razorpay = require('razorpay');
+
+let razorpay = null;
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+}
 
 class OrderService {
   async createOrder({ customerDetails, items, paymentMethod, couponCode, user }) {
@@ -65,9 +75,36 @@ class OrderService {
       }
     }
 
-    const paymentStatus = paymentMethod === 'card' ? 'Paid' : 'Pending';
+    let paymentStatus = 'Pending';
+    let razorpayOrderId = null;
+    let razorpayOrderDetails = null;
 
-    return await orderRepository.create({
+    if (paymentMethod === 'card') {
+      if (razorpay) {
+        try {
+          const options = {
+            amount: Math.round(finalAmount * 100), // in paise
+            currency: 'INR',
+            receipt: orderId,
+          };
+          const rpOrder = await razorpay.orders.create(options);
+          razorpayOrderId = rpOrder.id;
+          razorpayOrderDetails = {
+            id: rpOrder.id,
+            amount: rpOrder.amount,
+            currency: rpOrder.currency,
+          };
+        } catch (rpErr) {
+          console.error('[ERROR]: Razorpay order creation failed:', rpErr);
+          throw new ApiError(500, `Razorpay setup failed: ${rpErr.message}`);
+        }
+      } else {
+        console.warn('[WARN]: Razorpay credentials missing. Falling back to simulated instant payment.');
+        paymentStatus = 'Paid';
+      }
+    }
+
+    const order = await orderRepository.create({
       user: user ? user._id : null,
       orderId,
       customerDetails,
@@ -78,7 +115,14 @@ class OrderService {
       orderStatus: 'Processing',
       couponCode: couponCode || null,
       discountAmount,
+      razorpayOrderId,
     });
+
+    const orderObj = order.toObject();
+    if (razorpayOrderDetails) {
+      orderObj.razorpayOrder = razorpayOrderDetails;
+    }
+    return orderObj;
   }
 
   async getOrders(queryParams) {
@@ -114,6 +158,40 @@ class OrderService {
     order.orderStatus = orderStatus;
     if (orderStatus === 'Delivered') {
       order.paymentStatus = 'Paid';
+    }
+
+    return await orderRepository.save(order);
+  }
+
+  async verifyPayment({ orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature }) {
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      throw new ApiError(400, 'Payment verification credentials missing');
+    }
+
+    const order = await orderRepository.findOne({ orderId });
+    if (!order) {
+      throw new ApiError(404, 'Order not found');
+    }
+
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      throw new ApiError(500, 'Razorpay key secret not configured on server');
+    }
+
+    const shasum = crypto.createHmac('sha256', secret);
+    shasum.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+    const digest = shasum.digest('hex');
+
+    if (digest !== razorpay_signature) {
+      throw new ApiError(400, 'Invalid payment signature');
+    }
+
+    order.paymentStatus = 'Paid';
+    order.razorpayPaymentId = razorpay_payment_id;
+    order.razorpaySignature = razorpay_signature;
+
+    if (!order.razorpayOrderId) {
+      order.razorpayOrderId = razorpay_order_id;
     }
 
     return await orderRepository.save(order);
